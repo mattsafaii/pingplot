@@ -5,8 +5,8 @@ import { join } from "node:path";
 import sharp from "sharp";
 
 import { main } from "../src/cli.js";
-import { renderSpecToSvg, renderDonutToSvg, writePng, PINNED_FONT } from "../src/render.js";
-import { buildSpec } from "../src/spec.js";
+import { renderToSvg, renderSpecToSvg, renderDonutToSvg, writePng, PINNED_FONT } from "../src/render.js";
+import { buildPlan } from "../src/spec.js";
 import { loadData } from "../src/load.js";
 
 let dir;
@@ -26,8 +26,8 @@ describe("static pipeline (png)", () => {
   it("no --format writes a valid PNG (file reports PNG image data)", async () => {
     const out = join(tempDir(), "out.png");
     const rows = loadData(fixturePath);
-    const spec = buildSpec(rows, { mark: "bar", x: "month", y: "traffic" });
-    await writePng(renderSpecToSvg(spec), out);
+    const plan = buildPlan(rows, { mark: "bar", x: "month", y: "traffic" });
+    await writePng(renderToSvg(plan), out);
     expect(existsSync(out)).toBe(true);
     const buf = readFileSync(out);
     expect(buf.subarray(1, 4).toString()).toBe("PNG");
@@ -45,15 +45,15 @@ describe("static pipeline (png)", () => {
 
   it("static specs never carry tooltips", () => {
     const rows = loadData(fixturePath);
-    const spec = buildSpec(rows, { mark: "bar", x: "month", y: "traffic", interactive: true });
-    const svg = renderSpecToSvg(spec);
+    const plan = buildPlan(rows, { mark: "bar", x: "month", y: "traffic", interactive: true });
+    const svg = renderToSvg(plan);
     expect(svg).not.toMatch(/pointer-events|mouseover|mousemove/);
   });
 
   it("pins the font family on the rendered SVG", () => {
     const rows = loadData(fixturePath);
-    const spec = buildSpec(rows, { mark: "bar", x: "month", y: "traffic" });
-    const svg = renderSpecToSvg(spec);
+    const plan = buildPlan(rows, { mark: "bar", x: "month", y: "traffic" });
+    const svg = renderToSvg(plan);
     expect(svg).toContain(PINNED_FONT);
   });
 });
@@ -61,8 +61,8 @@ describe("static pipeline (png)", () => {
 describe("reference render", () => {
   it("renders a bar chart with real ink (bars + text, not an empty box)", async () => {
     const rows = loadData(fixturePath);
-    const spec = buildSpec(rows, { mark: "bar", x: "month", y: "traffic", colorRange: ["#1d4ed8", "#0f766e"] });
-    const png = await sharp(Buffer.from(renderSpecToSvg(spec))).png().toBuffer();
+    const plan = buildPlan(rows, { mark: "bar", x: "month", y: "traffic", colorRange: ["#1d4ed8", "#0f766e"] });
+    const png = await sharp(Buffer.from(renderToSvg(plan))).png().toBuffer();
     const { info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
     expect(info.width).toBeGreaterThan(100);
     expect(info.height).toBeGreaterThan(100);
@@ -76,10 +76,10 @@ describe("reference render", () => {
     expect(ink).toBeGreaterThan(1000);
   });
 
-  it("renders a donut from its sentinel spec", () => {
+  it("renders a donut from its sentinel plan", () => {
     const rows = loadData(fixturePath);
-    const spec = buildSpec(rows, { mark: "donut", x: "month", y: "traffic" });
-    const svg = renderDonutToSvg(spec.donut);
+    const plan = buildPlan(rows, { mark: "donut", x: "month", y: "traffic" });
+    const svg = renderDonutToSvg(plan.donut);
     expect(svg).toMatch(/<svg/);
     expect(svg).toMatch(/<path/);
     expect(svg).toContain(PINNED_FONT);

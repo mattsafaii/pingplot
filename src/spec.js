@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import * as Plot from "@observablehq/plot";
 
 import { PingplotError } from "./errors.js";
@@ -14,6 +15,20 @@ export const MARKS = [
   "funnel",
   "sparkline",
 ];
+
+// Plot mark constructors a --spec file is allowed to name. A whitelist, not an
+// allowlist of every mark: transforms, scales, and data loading are out.
+const SPEC_MARK_TYPES = new Set([
+  "area", "areaX", "areaY", "arrow", "auto", "barX", "barY", "boxX", "boxY",
+  "cell", "cellX", "cellY", "centroid", "circle", "contour", "crosshair",
+  "crosshairX", "crosshairY", "delaunayLink", "delaunayMesh", "density", "dot",
+  "dotX", "dotY", "frame", "geo", "graticule", "gridX", "gridY", "hexagon",
+  "hexgrid", "image", "legend", "line", "lineX", "lineY", "link", "map",
+  "pointer", "pointerX", "pointerY", "raster", "rect", "rectX", "rectY",
+  "ruleX", "ruleY", "sphere", "spike", "text", "textX", "textY", "tickX",
+  "tickY", "tree", "treeLink", "treeNode", "vector", "voronoi", "voronoiMesh",
+  "waffleX", "waffleY",
+]);
 
 // The channel each mark expects, and the value type it requires.
 // "number" rows must be numeric; "any" just needs the field to exist;
@@ -63,10 +78,11 @@ function validateContract(rows, mark, options) {
   }
 }
 
-// A plan is a plain-JSON description of a chart: the data plus a list of
-// Plot marks given by constructor name and channel options. It is the single
-// source of truth — specFromPlan turns it into a Plot spec for server-side
-// rendering, and the HTML page reconstructs it client-side.
+// A chart description is plain JSON: the data, a list of marks given by Plot
+// constructor name and channel options, and plot-level options (color, scales,
+// size). It is the single source of truth — specFromPlan renders it
+// server-side, and the HTML page reconstructs it client-side. Inline flags and
+// --spec files both produce one.
 function markPlan(mark, x, y, interactive) {
   const tip = interactive ? true : false;
   switch (mark) {
@@ -100,41 +116,73 @@ export function buildPlan(rows, options) {
     return { donut: { rows, x: options.x, y: options.y, range: options.colorRange ?? null } };
   }
 
-  const plan = {
-    data: rows,
-    color: options.colorRange ?? null,
-    marks: [markPlan(options.mark, options.x, options.y, options.interactive)],
-    extras: {},
-  };
-
+  let data = rows;
+  const plot = {};
+  if (options.colorRange) plot.color = { range: options.colorRange };
   if (options.mark === "funnel") {
     const field = options.x;
-    plan.data = rows.map((row) => ({ ...row, __x1: -row[field] / 2, __x2: row[field] / 2 }));
-    plan.extras.funnel = true;
+    data = rows.map((row) => ({ ...row, __x1: -row[field] / 2, __x2: row[field] / 2 }));
+    plot.x = { ticks: [] };
   }
-  if (options.mark === "sparkline") plan.extras.sparkline = true;
+  if (options.mark === "sparkline") {
+    plot.height = 60;
+    plot.margin = 4;
+    plot.x = { ticks: [], label: null };
+    plot.y = { ticks: [], label: null };
+  }
 
-  return plan;
+  return {
+    data,
+    marks: [markPlan(options.mark, options.x, options.y, options.interactive)],
+    plot,
+  };
+}
+
+export function parseSpecFile(specPath, { rows = null, interactive = false, colorRange = null } = {}) {
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(specPath, "utf8"));
+  } catch (err) {
+    throw new PingplotError(`invalid spec file ${specPath}: ${err.message}`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new PingplotError("spec file must be a Plot options object");
+  }
+  if (!Array.isArray(parsed.marks) || parsed.marks.length === 0) {
+    throw new PingplotError("spec file needs a marks array");
+  }
+
+  const data = parsed.data ?? rows;
+  if (!data) throw new PingplotError('spec file needs data (a "data" array in the file, or --data)');
+
+  const { data: _ignored, marks: rawMarks, ...plot } = parsed;
+  if (colorRange) plot.color = { ...(plot.color ?? {}), range: colorRange };
+
+  const marks = rawMarks.map((mark) => {
+    if (!mark || typeof mark !== "object") throw new PingplotError("each mark in the spec file must be an object");
+    const { type, data: markData, bin, ...options } = mark;
+    if (!SPEC_MARK_TYPES.has(type)) {
+      throw new PingplotError(`unknown or unsupported mark type "${type}"`);
+    }
+    return {
+      type,
+      options,
+      bin: bin ? true : false,
+      data: markData ?? data,
+      tip: interactive || mark.tip ? true : false,
+    };
+  });
+
+  return { data, marks, plot };
 }
 
 export function specFromPlan(plan) {
   const marks = plan.marks.map((m) => {
     const options = { ...m.options };
-    return m.bin
-      ? Plot.rect(plan.data, Plot.binX({ y: "count" }, options))
-      : Plot[m.type](plan.data, options);
+    const data = m.data ?? plan.data;
+    return m.bin ? Plot.rect(data, Plot.binX({ y: "count" }, options)) : Plot[m.type](data, options);
   });
-
-  const spec = { marks };
-  if (plan.color) spec.color = { range: plan.color };
-  if (plan.extras?.funnel) spec.x = { ticks: [] };
-  if (plan.extras?.sparkline) {
-    spec.height = 60;
-    spec.margin = 4;
-    spec.x = { ticks: [], label: null };
-    spec.y = { ticks: [], label: null };
-  }
-  return spec;
+  return { ...plan.plot, marks };
 }
 
 export function buildSpec(rows, options) {

@@ -12,20 +12,12 @@ function clientScript(plan) {
     chart.textContent = "Plot CDN didn't load \\u2014 check your network connection.";
     return;
   }
-  const marks = plan.marks.map((m) => {
+  const spec = Object.assign({}, plan.plot);
+  spec.marks = plan.marks.map((m) => {
     const opts = Object.assign({}, m.options);
     if (m.tip) opts.tip = true;
-    return m.bin ? Plot.rect(plan.data, Plot.binX({ y: "count" }, opts)) : Plot[m.type](plan.data, opts);
+    return m.bin ? Plot.rect(m.data || plan.data, Plot.binX({ y: "count" }, opts)) : Plot[m.type](m.data || plan.data, opts);
   });
-  const spec = { marks };
-  if (plan.color) spec.color = { range: plan.color };
-  if (plan.extras && plan.extras.funnel) spec.x = { ticks: [] };
-  if (plan.extras && plan.extras.sparkline) {
-    spec.height = 60;
-    spec.margin = 4;
-    spec.x = { ticks: [], label: null };
-    spec.y = { ticks: [], label: null };
-  }
   chart.appendChild(Plot.plot(spec));
 })();
 `;

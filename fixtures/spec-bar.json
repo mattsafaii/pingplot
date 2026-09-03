@@ -1,0 +1,13 @@
+{
+  "data": [
+    { "month": "Jan", "traffic": 10 },
+    { "month": "Feb", "traffic": 25 },
+    { "month": "Mar", "traffic": 18 },
+    { "month": "Apr", "traffic": 40 },
+    { "month": "May", "traffic": 32 },
+    { "month": "Jun", "traffic": 47 }
+  ],
+  "marks": [
+    { "type": "barY", "x": "month", "y": "traffic", "fill": "month" }
+  ]
+}

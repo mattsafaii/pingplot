@@ -98,7 +98,7 @@ describe("plan serialization", () => {
     const plan = buildPlan(data, { mark: "bar", x: "month", y: "traffic", colorRange: ["#1d4ed8"] });
     const roundTrip = JSON.parse(JSON.stringify(plan));
     expect(roundTrip.marks[0].type).toBe("barY");
-    expect(roundTrip.color).toEqual(["#1d4ed8"]);
+    expect(roundTrip.plot.color).toEqual({ range: ["#1d4ed8"] });
     expect(roundTrip.data).toHaveLength(data.length);
   });
 

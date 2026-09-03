@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "./args.js";
 import { PingplotError } from "./errors.js";
 import { loadData } from "./load.js";
-import { buildPlan, specFromPlan } from "./spec.js";
-import { renderPng, renderSpecToSvg, renderDonutToSvg, writeSvg } from "./render.js";
+import { buildPlan, parseSpecFile } from "./spec.js";
+import { renderPng, renderToSvg, writeSvg } from "./render.js";
 import { renderHtml } from "./html.js";
 
 const require = createRequire(import.meta.url);
@@ -53,31 +53,30 @@ export async function main(argv) {
     return 0;
   }
 
+  let plan;
   if (options.spec) {
-    throw new PingplotError("--spec is not wired up yet");
+    const rows = options.data ? loadData(options.data) : null;
+    plan = parseSpecFile(options.spec, { rows, interactive: options.interactive, colorRange: options.colorRange });
+  } else {
+    if (!options.data) throw new PingplotError("--data is required");
+    const rows = loadData(options.data);
+    if (!options.mark) throw new PingplotError("a --mark is required (see --help for the list)");
+    plan = buildPlan(rows, options);
   }
-
-  if (!options.data) throw new PingplotError("--data is required");
-  const rows = loadData(options.data);
-  if (!options.mark) throw new PingplotError("a --mark is required (see --help for the list)");
-  const plan = buildPlan(rows, options);
 
   if (options.interactive && options.format !== "html") {
     console.error("note: --interactive only affects html output; png/svg stay static");
   }
 
-  const outputPath = deriveOutputPath(options.data, options.format);
+  const outputPath = deriveOutputPath(options.data ?? options.spec, options.format);
 
   if (options.format === "html") {
     writeFileSync(outputPath, renderHtml(plan));
     console.error("note: html output loads Plot from the CDN and needs a network connection to render");
+  } else if (options.format === "svg") {
+    writeSvg(renderToSvg(plan), outputPath);
   } else {
-    const svg = plan.donut ? renderDonutToSvg(plan.donut) : renderSpecToSvg(specFromPlan(plan));
-    if (options.format === "svg") {
-      writeSvg(svg, outputPath);
-    } else {
-      await renderPng(specFromPlan(plan), outputPath);
-    }
+    await renderPng(plan, outputPath);
   }
 
   console.log(outputPath);

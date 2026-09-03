@@ -5,7 +5,8 @@ import { join } from "node:path";
 
 import { main } from "../src/cli.js";
 import { renderHtml, PLOT_CDN } from "../src/html.js";
-import { buildPlan } from "../src/spec.js";
+import { renderToSvg } from "../src/render.js";
+import { buildPlan, parseSpecFile } from "../src/spec.js";
 import { loadData } from "../src/load.js";
 
 let dir;
@@ -114,5 +115,60 @@ describe("interactive", () => {
     expect(errs.some((e) => /png\/svg stay static/.test(e))).toBe(true);
     const png = readFileSync(out.replace(".csv", ".png"));
     expect(png.subarray(1, 4).toString()).toBe("PNG");
+  });
+});
+
+describe("spec-file mode", () => {
+  it("renders the same chart as equivalent inline flags (outputs match)", () => {
+    const rows = loadData(fixturePath);
+    const inline = buildPlan(rows, { mark: "bar", x: "month", y: "traffic" });
+    const fromFile = parseSpecFile("fixtures/spec-bar.json");
+    const svgInline = renderToSvg(inline);
+    const svgFile = renderToSvg(fromFile);
+    expect(svgFile).toBe(svgInline);
+  });
+
+  it("runs end to end from the CLI", async () => {
+    const out = join(tempDir(), "spec-bar.json");
+    writeFileSync(out, readFileSync("fixtures/spec-bar.json"));
+    const code = await main(["--spec", out]);
+    expect(code).toBe(0);
+    const png = out.replace(".json", ".png");
+    expect(readFileSync(png).subarray(1, 4).toString()).toBe("PNG");
+  });
+
+  it("accepts a spec file with data coming from --data", async () => {
+    const rows = loadData(fixturePath);
+    const plan = parseSpecFile("fixtures/spec-bar.json", { rows });
+    expect(plan.data).toHaveLength(6);
+  });
+
+  it("rejects an unknown mark type", () => {
+    const out = join(tempDir(), "bad.json");
+    writeFileSync(out, JSON.stringify({ data: [{ x: 1 }], marks: [{ type: "eval", x: "x" }] }));
+    expect(() => parseSpecFile(out)).toThrow(/unknown or unsupported mark type/);
+  });
+
+  it("rejects a spec file without marks", () => {
+    const out = join(tempDir(), "nomarks.json");
+    writeFileSync(out, JSON.stringify({ data: [] }));
+    expect(() => parseSpecFile(out)).toThrow(/needs a marks array/);
+  });
+
+  it("rejects a spec file without data when --data is absent", () => {
+    const out = join(tempDir(), "nodata.json");
+    writeFileSync(out, JSON.stringify({ marks: [{ type: "barY", x: "x", y: "y" }] }));
+    expect(() => parseSpecFile(out)).toThrow(/needs data/);
+  });
+
+  it("rejects an invalid spec file", () => {
+    const out = join(tempDir(), "bad.json");
+    writeFileSync(out, "{not json");
+    expect(() => parseSpecFile(out)).toThrow(/invalid spec file/);
+  });
+
+  it("merges --color-range into the spec's color scale", () => {
+    const plan = parseSpecFile("fixtures/spec-bar.json", { colorRange: ["#1d4ed8"] });
+    expect(plan.plot.color).toEqual({ range: ["#1d4ed8"] });
   });
 });

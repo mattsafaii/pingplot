@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { arc as arcShape, pie as pieShape } from "d3";
 
 import { PingplotError } from "./errors.js";
+import { specFromPlan } from "./spec.js";
 
 // Plot's SVG defaults to font-family="system-ui, sans-serif", which rasterizers
 // don't always resolve. Pin an explicit stack so text never renders as boxes.
@@ -82,8 +83,11 @@ export function writeSvg(svg, outputPath) {
   writeFileSync(outputPath, svg);
 }
 
-export async function renderPng(spec, outputPath) {
-  const svg = spec.donut ? renderDonutToSvg(spec.donut) : renderSpecToSvg(spec);
-  await writePng(svg, outputPath);
+export function renderToSvg(plan) {
+  return plan.donut ? renderDonutToSvg(plan.donut) : renderSpecToSvg(specFromPlan(plan));
+}
+
+export async function renderPng(plan, outputPath) {
+  await writePng(renderToSvg(plan), outputPath);
   return outputPath;
 }
