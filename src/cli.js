@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 import { parseArgs } from "./args.js";
 import { PingplotError } from "./errors.js";
+import { loadData } from "./load.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
@@ -54,7 +54,7 @@ export function main(argv) {
   }
 
   if (!options.data) throw new PingplotError("--data is required");
-  if (!existsSync(options.data)) throw new PingplotError(`data file not found: ${options.data}`);
+  loadData(options.data);
   if (!options.mark) throw new PingplotError("a --mark is required (see --help for the list)");
 
   const outputPath = deriveOutputPath(options.data, options.format);
