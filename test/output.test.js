@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { main } from "../src/cli.js";
-import { renderHtml, PLOT_CDN } from "../src/html.js";
+import { renderHtml, PLOT_CDN, D3_CDN } from "../src/html.js";
 import { renderToSvg } from "../src/render.js";
 import { buildPlan, parseSpecFile } from "../src/spec.js";
 import { loadData } from "../src/load.js";
@@ -53,9 +53,18 @@ describe("html output", () => {
     expect(code).toBe(0);
     const html = readFileSync(out.replace(".csv", ".html"), "utf8");
     expect(html).toContain(`<script src="${PLOT_CDN}"></script>`);
+    expect(html).toContain(`<script src="${D3_CDN}"></script>`);
     expect(html).toContain('Plot.plot(spec)');
     expect(html).toContain('id="chart"');
     expect(html).toContain('"type":"barY"');
+  });
+
+  it("wraps the inline client script in a script tag so it executes", async () => {
+    const rows = loadData(fixturePath);
+    const plan = buildPlan(rows, { mark: "bar", x: "month", y: "traffic" });
+    const html = renderHtml(plan);
+    expect(html).toMatch(/<script>\s*\(function \(\) \{/);
+    expect(html).toMatch(/Plot\.plot\(spec\)\s*\);\s*\}\)\(\);\s*<\/script>/);
   });
 
   it("includes the offline fallback message", () => {

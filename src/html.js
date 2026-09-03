@@ -1,6 +1,7 @@
 import { renderDonutToSvg } from "./render.js";
 
 export const PLOT_CDN = "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/dist/plot.umd.min.js";
+export const D3_CDN = "https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js";
 
 // Mirrors specFromPlan in src/spec.js — the page rebuilds the chart client-side.
 function clientScript(plan) {
@@ -26,7 +27,9 @@ function clientScript(plan) {
 export function renderHtml(plan) {
   const body = plan.donut
     ? renderDonutToSvg(plan.donut)
-    : `<script src="${PLOT_CDN}"></script>\n  ${clientScript(plan)}`;
+    : `<script src="${D3_CDN}"></script>
+  <script src="${PLOT_CDN}"></script>
+  <script>${clientScript(plan)}</script>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
