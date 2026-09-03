@@ -81,3 +81,38 @@ describe("html output", () => {
     expect(renderHtml(interactive)).toContain('"tip":true');
   });
 });
+
+describe("interactive", () => {
+  it("--format html --interactive embeds tooltips and notes the CDN dependency", async () => {
+    const out = join(tempDir(), "report.csv");
+    writeFileSync(out, readFileSync(fixturePath));
+    const errs = [];
+    const originalError = console.error;
+    console.error = (...args) => errs.push(args.join(" "));
+    try {
+      const code = await main(["--data", out, "--mark", "bar", "--x", "month", "--y", "traffic", "--format", "html", "--interactive"]);
+      expect(code).toBe(0);
+    } finally {
+      console.error = originalError;
+    }
+    const html = readFileSync(out.replace(".csv", ".html"), "utf8");
+    expect(html).toContain('"tip":true');
+    expect(errs.some((e) => /CDN/.test(e))).toBe(true);
+  });
+
+  it("--interactive with png stays static but notes the limitation", async () => {
+    const out = join(tempDir(), "report.csv");
+    writeFileSync(out, readFileSync(fixturePath));
+    const errs = [];
+    const originalError = console.error;
+    console.error = (...args) => errs.push(args.join(" "));
+    try {
+      await main(["--data", out, "--mark", "bar", "--x", "month", "--y", "traffic", "--format", "png", "--interactive"]);
+    } finally {
+      console.error = originalError;
+    }
+    expect(errs.some((e) => /png\/svg stay static/.test(e))).toBe(true);
+    const png = readFileSync(out.replace(".csv", ".png"));
+    expect(png.subarray(1, 4).toString()).toBe("PNG");
+  });
+});

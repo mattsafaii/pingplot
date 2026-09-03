@@ -62,6 +62,10 @@ export async function main(argv) {
   if (!options.mark) throw new PingplotError("a --mark is required (see --help for the list)");
   const plan = buildPlan(rows, options);
 
+  if (options.interactive && options.format !== "html") {
+    console.error("note: --interactive only affects html output; png/svg stay static");
+  }
+
   const outputPath = deriveOutputPath(options.data, options.format);
 
   if (options.format === "html") {
