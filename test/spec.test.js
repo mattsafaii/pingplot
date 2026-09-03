@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSpec, MARKS } from "../src/spec.js";
+import { buildSpec, buildPlan, specFromPlan, MARKS } from "../src/spec.js";
 import { PingplotError } from "../src/errors.js";
 
 const data = [
@@ -40,10 +40,12 @@ describe("buildSpec", () => {
   });
 
   it("enables tip only when interactive", () => {
-    const plain = buildSpec(data, { mark: "bar", x: "month", y: "traffic" });
-    expect(plain.marks[0].tip).toBeNull();
-    const interactive = buildSpec(data, { mark: "bar", x: "month", y: "traffic", interactive: true });
-    expect(interactive.marks[0].tip).toBeTruthy();
+    const plain = buildPlan(data, { mark: "bar", x: "month", y: "traffic" });
+    expect(plain.marks[0].tip).toBe(false);
+    const interactive = buildPlan(data, { mark: "bar", x: "month", y: "traffic", interactive: true });
+    expect(interactive.marks[0].tip).toBe(true);
+    const spec = specFromPlan(interactive);
+    expect(spec.marks[0].tip).toBeNull();
   });
 
   it("returns a donut sentinel for the donut mark", () => {
@@ -88,5 +90,31 @@ describe("contract errors", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(PingplotError);
     }
+  });
+});
+
+describe("plan serialization", () => {
+  it("produces a JSON-serializable plan", () => {
+    const plan = buildPlan(data, { mark: "bar", x: "month", y: "traffic", colorRange: ["#1d4ed8"] });
+    const roundTrip = JSON.parse(JSON.stringify(plan));
+    expect(roundTrip.marks[0].type).toBe("barY");
+    expect(roundTrip.color).toEqual(["#1d4ed8"]);
+    expect(roundTrip.data).toHaveLength(data.length);
+  });
+
+  it("derives funnel x1/x2 columns so the plan stays plain JSON", () => {
+    const plan = buildPlan(data, { mark: "funnel", x: "traffic", y: "month" });
+    const roundTrip = JSON.parse(JSON.stringify(plan));
+    expect(roundTrip.data[0].__x1).toBeCloseTo(-10 / 2);
+    expect(roundTrip.data[0].__x2).toBeCloseTo(10 / 2);
+    expect(roundTrip.marks[0].type).toBe("barX");
+  });
+
+  it("specFromPlan rebuilds the same Plot spec the plan describes", () => {
+    const plan = buildPlan(data, { mark: "bar", x: "month", y: "traffic" });
+    const spec = specFromPlan(plan);
+    expect(spec.marks[0].data).toBe(plan.data);
+    expect(spec.marks[0].channels.x).toBeDefined();
+    expect(spec.marks[0].channels.y1).toBeDefined();
   });
 });

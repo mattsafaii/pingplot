@@ -1,12 +1,14 @@
 #!/usr/bin/env node
+import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 import { parseArgs } from "./args.js";
 import { PingplotError } from "./errors.js";
 import { loadData } from "./load.js";
-import { buildSpec } from "./spec.js";
-import { renderPng } from "./render.js";
+import { buildPlan, specFromPlan } from "./spec.js";
+import { renderPng, renderSpecToSvg, renderDonutToSvg, writeSvg } from "./render.js";
+import { renderHtml } from "./html.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
@@ -58,13 +60,21 @@ export async function main(argv) {
   if (!options.data) throw new PingplotError("--data is required");
   const rows = loadData(options.data);
   if (!options.mark) throw new PingplotError("a --mark is required (see --help for the list)");
-  const spec = buildSpec(rows, options);
+  const plan = buildPlan(rows, options);
 
   const outputPath = deriveOutputPath(options.data, options.format);
 
-  if (options.format === "html") throw new PingplotError("--format html is not wired up yet");
-  if (options.format === "svg") throw new PingplotError("--format svg is not wired up yet");
-  await renderPng(spec, outputPath);
+  if (options.format === "html") {
+    writeFileSync(outputPath, renderHtml(plan));
+    console.error("note: html output loads Plot from the CDN and needs a network connection to render");
+  } else {
+    const svg = plan.donut ? renderDonutToSvg(plan.donut) : renderSpecToSvg(specFromPlan(plan));
+    if (options.format === "svg") {
+      writeSvg(svg, outputPath);
+    } else {
+      await renderPng(specFromPlan(plan), outputPath);
+    }
+  }
 
   console.log(outputPath);
   return 0;

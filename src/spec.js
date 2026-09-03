@@ -63,56 +63,82 @@ function validateContract(rows, mark, options) {
   }
 }
 
-function withTip(options, interactive) {
-  return interactive ? { ...options, tip: true } : options;
-}
-
-function buildMark(data, mark, x, y, interactive) {
+// A plan is a plain-JSON description of a chart: the data plus a list of
+// Plot marks given by constructor name and channel options. It is the single
+// source of truth — specFromPlan turns it into a Plot spec for server-side
+// rendering, and the HTML page reconstructs it client-side.
+function markPlan(mark, x, y, interactive) {
+  const tip = interactive ? true : false;
   switch (mark) {
     case "bar":
-      return Plot.barY(data, withTip({ x, y, fill: x }, interactive));
+      return { type: "barY", options: { x, y, fill: x }, tip };
     case "line":
-      return Plot.line(data, withTip({ x, y }, interactive));
+      return { type: "line", options: { x, y }, tip };
     case "area":
-      return Plot.areaY(data, withTip({ x, y1: 0, y2: y }, interactive));
+      return { type: "areaY", options: { x, y1: 0, y2: y }, tip };
     case "dot":
-      return Plot.dot(data, withTip({ x, y }, interactive));
+      return { type: "dot", options: { x, y }, tip };
     case "box":
-      return Plot.boxY(data, withTip({ x, y }, interactive));
+      return { type: "boxY", options: { x, y }, tip };
     case "heatmap":
-      return Plot.rect(data, Plot.binX({ y: "count" }, withTip({ x, y, fill: "count" }, interactive)));
+      return { type: "rect", bin: true, options: { x, y, fill: "count" }, tip };
     case "rule":
-      return Plot.ruleY(data, withTip({ y }, interactive));
+      return { type: "ruleY", options: { y }, tip };
     case "funnel":
-      return Plot.barX(
-        data,
-        withTip({ y, x1: (d) => -d[x] / 2, x2: (d) => d[x] / 2, fill: y }, interactive),
-      );
+      return { type: "barX", options: { y, x1: "__x1", x2: "__x2", fill: y }, tip };
     case "sparkline":
-      return Plot.line(data, withTip({ x, y }, interactive));
+      return { type: "line", options: { x, y }, tip };
     default:
       throw new PingplotError(`unknown mark "${mark}"`);
   }
 }
 
-export function buildSpec(rows, options) {
+export function buildPlan(rows, options) {
   validateContract(rows, options.mark, options);
 
   if (options.mark === "donut") {
     return { donut: { rows, x: options.x, y: options.y, range: options.colorRange ?? null } };
   }
 
-  const marks = [buildMark(rows, options.mark, options.x, options.y, options.interactive)];
-  const spec = { marks };
-  if (options.colorRange) spec.color = { range: options.colorRange };
+  const plan = {
+    data: rows,
+    color: options.colorRange ?? null,
+    marks: [markPlan(options.mark, options.x, options.y, options.interactive)],
+    extras: {},
+  };
+
   if (options.mark === "funnel") {
-    spec.x = { ticks: [] };
+    const field = options.x;
+    plan.data = rows.map((row) => ({ ...row, __x1: -row[field] / 2, __x2: row[field] / 2 }));
+    plan.extras.funnel = true;
   }
-  if (options.mark === "sparkline") {
+  if (options.mark === "sparkline") plan.extras.sparkline = true;
+
+  return plan;
+}
+
+export function specFromPlan(plan) {
+  const marks = plan.marks.map((m) => {
+    const options = { ...m.options };
+    return m.bin
+      ? Plot.rect(plan.data, Plot.binX({ y: "count" }, options))
+      : Plot[m.type](plan.data, options);
+  });
+
+  const spec = { marks };
+  if (plan.color) spec.color = { range: plan.color };
+  if (plan.extras?.funnel) spec.x = { ticks: [] };
+  if (plan.extras?.sparkline) {
     spec.height = 60;
     spec.margin = 4;
     spec.x = { ticks: [], label: null };
     spec.y = { ticks: [], label: null };
   }
   return spec;
+}
+
+export function buildSpec(rows, options) {
+  const plan = buildPlan(rows, options);
+  if (plan.donut) return plan;
+  return specFromPlan(plan);
 }
