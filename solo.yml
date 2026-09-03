@@ -1,0 +1,4 @@
+name: pingplot
+processes:
+  Test:
+    command: pnpm test
