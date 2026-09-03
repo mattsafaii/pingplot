@@ -52,8 +52,8 @@ export function renderDonutToSvg({ rows, x, y, range }) {
   const color = (label) => scale.apply(label);
 
   const width = 320;
-  const height = 200;
-  const radius = height / 2 - 20;
+  const height = Math.max(200, labels.length * 15 + 70);
+  const radius = Math.min(height / 2 - 20, width / 2 - 30);
   const innerRadius = radius * 0.55;
   const arc = arcShape().innerRadius(innerRadius).outerRadius(radius);
   const pie = pieShape().value((d) => d.value).sort(null)(slices);

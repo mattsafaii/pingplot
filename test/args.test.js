@@ -49,6 +49,11 @@ describe("parseArgs", () => {
     expect(() => parseArgs(["--data"])).toThrow(/requires a value/);
   });
 
+  it("rejects a flag where a value is expected", () => {
+    expect(() => parseArgs(["--data", "--mark"])).toThrow(PingplotError);
+    expect(() => parseArgs(["--data", "--mark"])).toThrow(/--data requires a value/);
+  });
+
   it("rejects a bad format", () => {
     expect(() => parseArgs(["--format", "gif"])).toThrow(PingplotError);
     expect(() => parseArgs(["--format", "gif"])).toThrow(/must be one of/);

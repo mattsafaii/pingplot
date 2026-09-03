@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { writeFileSync } from "node:fs";
+import { writeFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -68,11 +68,18 @@ export async function main(argv) {
     console.error("note: --interactive only affects html output; png/svg stay static");
   }
 
+  const isDonutHtml = options.format === "html" && !!plan.donut;
+  if (options.interactive && isDonutHtml) {
+    console.error("note: donut html output is static (no Plot, no tooltips); --interactive has no effect");
+  }
+
   const outputPath = deriveOutputPath(options.data ?? options.spec, options.format);
 
   if (options.format === "html") {
     writeFileSync(outputPath, renderHtml(plan));
-    console.error("note: html output loads Plot from the CDN and needs a network connection to render");
+    if (!isDonutHtml) {
+      console.error("note: html output loads Plot from the CDN and needs a network connection to render");
+    }
   } else if (options.format === "svg") {
     writeSvg(renderToSvg(plan), outputPath);
   } else {
@@ -94,5 +101,5 @@ function run(argv) {
     });
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === require.resolve("../src/cli.js");
+const isMain = process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) run(process.argv.slice(2));

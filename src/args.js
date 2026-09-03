@@ -18,7 +18,9 @@ export function parseArgs(argv) {
 
   const value = (name, i) => {
     if (i + 1 >= argv.length) throw new PingplotError(`--${name} requires a value`);
-    return argv[i + 1];
+    const next = argv[i + 1];
+    if (next.startsWith("-") && next !== "-") throw new PingplotError(`--${name} requires a value`);
+    return next;
   };
 
   for (let i = 0; i < argv.length; i++) {

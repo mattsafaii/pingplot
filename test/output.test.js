@@ -125,6 +125,21 @@ describe("interactive", () => {
     const png = readFileSync(out.replace(".csv", ".png"));
     expect(png.subarray(1, 4).toString()).toBe("PNG");
   });
+
+  it("donut html notes it is static and skips the CDN note", async () => {
+    const out = join(tempDir(), "report.csv");
+    writeFileSync(out, readFileSync(fixturePath));
+    const errs = [];
+    const originalError = console.error;
+    console.error = (...args) => errs.push(args.join(" "));
+    try {
+      await main(["--data", out, "--mark", "donut", "--x", "month", "--y", "traffic", "--format", "html", "--interactive"]);
+    } finally {
+      console.error = originalError;
+    }
+    expect(errs.some((e) => /donut html output is static/.test(e))).toBe(true);
+    expect(errs.some((e) => /loads Plot from the CDN/.test(e))).toBe(false);
+  });
 });
 
 describe("spec-file mode", () => {
@@ -174,6 +189,24 @@ describe("spec-file mode", () => {
     const out = join(tempDir(), "bad.json");
     writeFileSync(out, "{not json");
     expect(() => parseSpecFile(out)).toThrow(/invalid spec file/);
+  });
+
+  it("rejects empty data instead of rendering an empty chart", () => {
+    const out = join(tempDir(), "empty.json");
+    writeFileSync(out, JSON.stringify({ data: [], marks: [{ type: "barY", x: "month", y: "traffic" }] }));
+    expect(() => parseSpecFile(out)).toThrow(/no data rows/);
+  });
+
+  it("rejects a typo'd field in a spec file", () => {
+    const out = join(tempDir(), "typo.json");
+    writeFileSync(out, JSON.stringify({ data: [{ month: "Jan", traffic: 10 }], marks: [{ type: "barY", x: "moth", y: "traffic" }] }));
+    expect(() => parseSpecFile(out)).toThrow(/not found in data/);
+  });
+
+  it("rejects a non-numeric length channel in a spec file", () => {
+    const out = join(tempDir(), "str.json");
+    writeFileSync(out, JSON.stringify({ data: [{ month: "Jan", traffic: "ten" }], marks: [{ type: "barY", x: "month", y: "traffic" }] }));
+    expect(() => parseSpecFile(out)).toThrow(/expects a numeric y field/);
   });
 
   it("merges --color-range into the spec's color scale", () => {

@@ -44,8 +44,9 @@ describe("cli validation", () => {
     await expect(main(["--data", path])).rejects.toThrow(/--mark is required/);
   });
 
-  it("rejects --spec until wired up", async () => {
-    await expect(main(["--spec", "spec.json"])).rejects.toThrow(PingplotError);
+  it("rejects a missing spec file", async () => {
+    await expect(main(["--spec", "nope.json"])).rejects.toThrow(PingplotError);
+    await expect(main(["--spec", "nope.json"])).rejects.toThrow(/invalid spec file/);
   });
 
   it("help prints usage and exits 0", async () => {

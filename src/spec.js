@@ -50,6 +50,25 @@ function column(rows, field) {
   return rows.map((row) => row[field]);
 }
 
+function assertNumericField(rows, field, channelLabel) {
+  const values = column(rows, field);
+  const bad = values.find((v) => v !== null && v !== undefined && (typeof v !== "number" || Number.isNaN(v)));
+  if (bad !== undefined) {
+    throw new PingplotError(
+      `${channelLabel} field, but "${field}" contains non-numeric values (e.g. "${bad}")`,
+    );
+  }
+}
+
+function assertFieldExists(rows, field, context) {
+  const values = column(rows, field);
+  const present = values.some((v) => v !== null && v !== undefined);
+  if (!present) {
+    const columns = Object.keys(rows[0]).join(", ");
+    throw new PingplotError(`${context}: field "${field}" not found in data (columns: ${columns})`);
+  }
+}
+
 function validateContract(rows, mark, options) {
   const contract = CONTRACTS[mark];
   if (!contract) throw new PingplotError(`unknown mark "${mark}" (expected one of ${MARKS.join(", ")})`);
@@ -61,20 +80,8 @@ function validateContract(rows, mark, options) {
     if (field == null) {
       throw new PingplotError(`mark "${mark}" needs a --${channel} field`);
     }
-    const values = column(rows, field);
-    const present = values.some((v) => v !== null && v !== undefined);
-    if (!present) {
-      const columns = Object.keys(rows[0]).join(", ");
-      throw new PingplotError(`field "${field}" not found in data (columns: ${columns})`);
-    }
-    if (kind === "number") {
-      const bad = values.find((v) => v !== null && v !== undefined && (typeof v !== "number" || Number.isNaN(v)));
-      if (bad !== undefined) {
-        throw new PingplotError(
-          `mark "${mark}" expects a numeric --${channel} field, but "${field}" contains non-numeric values (e.g. "${bad}")`,
-        );
-      }
-    }
+    assertFieldExists(rows, field, `mark "${mark}"`);
+    if (kind === "number") assertNumericField(rows, field, `mark "${mark}" expects a numeric --${channel}`);
   }
 }
 
@@ -84,7 +91,7 @@ function validateContract(rows, mark, options) {
 // server-side, and the HTML page reconstructs it client-side. Inline flags and
 // --spec files both produce one.
 function markPlan(mark, x, y, interactive) {
-  const tip = interactive ? true : false;
+  const tip = Boolean(interactive);
   switch (mark) {
     case "bar":
       return { type: "barY", options: { x, y, fill: x }, tip };
@@ -138,6 +145,35 @@ export function buildPlan(rows, options) {
   };
 }
 
+// Plot constructor names whose length channel must be numeric. Spec-file marks
+// are arbitrary Plot marks, so only these unambiguous ones get a numeric check.
+const NUMERIC_CHANNEL = new Map([
+  ["barY", "y"], ["boxY", "y"], ["areaY", "y"], ["ruleY", "y"],
+  ["barX", "x"], ["boxX", "x"], ["areaX", "x"], ["ruleX", "x"],
+]);
+
+// Channels that almost always reference a data field (fill/stroke/text accept
+// literals like color names, so they are deliberately excluded).
+const POSITION_CHANNELS = new Set(["x", "y", "x1", "x2", "y1", "y2", "r", "value", "angle"]);
+
+function validateSpecFileMarks(data, marks) {
+  if (data.length === 0) throw new PingplotError("no data rows to chart");
+
+  for (const mark of marks) {
+    const rows = mark.data ?? data;
+    if (rows.length === 0) throw new PingplotError(`mark "${mark.type}" has no data rows`);
+    for (const [channel, value] of Object.entries(mark.options)) {
+      if (typeof value !== "string" || !POSITION_CHANNELS.has(channel)) continue;
+      assertFieldExists(rows, value, `mark "${mark.type}"`);
+    }
+    const numericChannel = NUMERIC_CHANNEL.get(mark.type);
+    const numericField = numericChannel ? mark.options[numericChannel] : null;
+    if (typeof numericField === "string") {
+      assertNumericField(mark.data ?? data, numericField, `mark "${mark.type}" expects a numeric ${numericChannel}`);
+    }
+  }
+}
+
 export function parseSpecFile(specPath, { rows = null, interactive = false, colorRange = null } = {}) {
   let parsed;
   try {
@@ -167,11 +203,13 @@ export function parseSpecFile(specPath, { rows = null, interactive = false, colo
     return {
       type,
       options,
-      bin: bin ? true : false,
+      bin: Boolean(bin),
       data: markData ?? data,
-      tip: interactive || mark.tip ? true : false,
+      tip: Boolean(interactive || mark.tip),
     };
   });
+
+  validateSpecFileMarks(data, marks);
 
   return { data, marks, plot };
 }
@@ -183,10 +221,4 @@ export function specFromPlan(plan) {
     return m.bin ? Plot.rect(data, Plot.binX({ y: "count" }, options)) : Plot[m.type](data, options);
   });
   return { ...plan.plot, marks };
-}
-
-export function buildSpec(rows, options) {
-  const plan = buildPlan(rows, options);
-  if (plan.donut) return plan;
-  return specFromPlan(plan);
 }
