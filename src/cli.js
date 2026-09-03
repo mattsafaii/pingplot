@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "./args.js";
 import { PingplotError } from "./errors.js";
 import { loadData } from "./load.js";
+import { buildSpec } from "./spec.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
@@ -54,8 +55,9 @@ export function main(argv) {
   }
 
   if (!options.data) throw new PingplotError("--data is required");
-  loadData(options.data);
+  const rows = loadData(options.data);
   if (!options.mark) throw new PingplotError("a --mark is required (see --help for the list)");
+  buildSpec(rows, options);
 
   const outputPath = deriveOutputPath(options.data, options.format);
   console.log(outputPath);

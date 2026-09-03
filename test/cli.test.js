@@ -70,4 +70,11 @@ describe("output path", () => {
     const code = main(["--data", path, "--mark", "bar", "--x", "month", "--y", "traffic"]);
     expect(code).toBe(0);
   });
+
+  it("surfaces a data/mark contract mismatch", () => {
+    const path = fixture("report.csv", "month,traffic\nJan,ten\nFeb,twenty\n");
+    expect(() => main(["--data", path, "--mark", "bar", "--x", "month", "--y", "traffic"])).toThrow(
+      /expects a numeric --y field/,
+    );
+  });
 });
