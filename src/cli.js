@@ -6,6 +6,7 @@ import { parseArgs } from "./args.js";
 import { PingplotError } from "./errors.js";
 import { loadData } from "./load.js";
 import { buildSpec } from "./spec.js";
+import { renderPng } from "./render.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json");
@@ -38,7 +39,7 @@ export function deriveOutputPath(dataPath, format) {
   return `${base}.${format}`;
 }
 
-export function main(argv) {
+export async function main(argv) {
   const options = parseArgs(argv);
 
   if (options.help) {
@@ -57,21 +58,27 @@ export function main(argv) {
   if (!options.data) throw new PingplotError("--data is required");
   const rows = loadData(options.data);
   if (!options.mark) throw new PingplotError("a --mark is required (see --help for the list)");
-  buildSpec(rows, options);
+  const spec = buildSpec(rows, options);
 
   const outputPath = deriveOutputPath(options.data, options.format);
+
+  if (options.format === "html") throw new PingplotError("--format html is not wired up yet");
+  if (options.format === "svg") throw new PingplotError("--format svg is not wired up yet");
+  await renderPng(spec, outputPath);
+
   console.log(outputPath);
   return 0;
 }
 
 function run(argv) {
-  try {
-    const code = main(argv);
-    process.exitCode = code ?? 0;
-  } catch (err) {
-    console.error(`pingplot: ${err instanceof Error ? err.message : err}`);
-    process.exitCode = 1;
-  }
+  main(argv)
+    .then((code) => {
+      process.exitCode = code ?? 0;
+    })
+    .catch((err) => {
+      console.error(`pingplot: ${err instanceof Error ? err.message : err}`);
+      process.exitCode = 1;
+    });
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === require.resolve("../src/cli.js");

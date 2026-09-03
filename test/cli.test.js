@@ -20,9 +20,8 @@ afterEach(() => {
 });
 
 describe("cli validation", () => {
-  it("missing data file fails cleanly", () => {
-    expect(() => main(["--data", "missing.csv", "--mark", "bar"])).toThrow(PingplotError);
-    expect(() => main(["--data", "missing.csv", "--mark", "bar"])).toThrow(/data file not found/);
+  it("missing data file fails cleanly", async () => {
+    await expect(main(["--data", "missing.csv", "--mark", "bar"])).rejects.toThrow(/data file not found/);
   });
 
   it("missing data file exits non-zero with a clear message, no stack trace", async () => {
@@ -36,21 +35,21 @@ describe("cli validation", () => {
     expect(result.stderr).not.toMatch(/at /); // no stack frames
   });
 
-  it("requires a data file", () => {
-    expect(() => main(["--mark", "bar"])).toThrow(/--data is required/);
+  it("requires a data file", async () => {
+    await expect(main(["--mark", "bar"])).rejects.toThrow(/--data is required/);
   });
 
-  it("requires a mark in inline mode", () => {
+  it("requires a mark in inline mode", async () => {
     const path = fixture("report.csv", "month,traffic\nJan,10\n");
-    expect(() => main(["--data", path])).toThrow(/--mark is required/);
+    await expect(main(["--data", path])).rejects.toThrow(/--mark is required/);
   });
 
-  it("rejects --spec until wired up", () => {
-    expect(() => main(["--spec", "spec.json"])).toThrow(PingplotError);
+  it("rejects --spec until wired up", async () => {
+    await expect(main(["--spec", "spec.json"])).rejects.toThrow(PingplotError);
   });
 
-  it("help prints usage and exits 0", () => {
-    const code = main(["--help"]);
+  it("help prints usage and exits 0", async () => {
+    const code = await main(["--help"]);
     expect(code).toBe(0);
     expect(usage()).toMatch(/--mark/);
     expect(usage()).toMatch(/--color-range/);
@@ -65,16 +64,17 @@ describe("output path", () => {
     expect(deriveOutputPath("data/report.json", "png")).toBe("data/report.png");
   });
 
-  it("default format is png", () => {
+  it("default format is png", async () => {
     const path = fixture("report.csv", "month,traffic\nJan,10\n");
-    const code = main(["--data", path, "--mark", "bar", "--x", "month", "--y", "traffic"]);
+    const code = await main(["--data", path, "--mark", "bar", "--x", "month", "--y", "traffic"]);
     expect(code).toBe(0);
+    expect(await import("node:fs").then((fs) => fs.existsSync(path.replace(".csv", ".png")))).toBe(true);
   });
 
-  it("surfaces a data/mark contract mismatch", () => {
+  it("surfaces a data/mark contract mismatch", async () => {
     const path = fixture("report.csv", "month,traffic\nJan,ten\nFeb,twenty\n");
-    expect(() => main(["--data", path, "--mark", "bar", "--x", "month", "--y", "traffic"])).toThrow(
-      /expects a numeric --y field/,
-    );
+    await expect(
+      main(["--data", path, "--mark", "bar", "--x", "month", "--y", "traffic"]),
+    ).rejects.toThrow(/expects a numeric --y field/);
   });
 });
