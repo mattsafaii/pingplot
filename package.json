@@ -21,6 +21,11 @@
   ],
   "author": "Matt Safaii",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mattsafaii/pingplot"
+  },
+  "homepage": "https://github.com/mattsafaii/pingplot",
   "engines": {
     "node": ">=18"
   },
