@@ -4,6 +4,8 @@ CLI that turns a CSV or JSON file into a chart — PNG by default, SVG or a
 self-contained HTML page on request. Charts come from [Observable Plot](https://observablehq.com/plot):
 Plot defaults for styling, with custom color palettes as the one option.
 
+<img src="examples/bar.png" alt="Example bar chart" width="640">
+
 ## Install
 
 ```sh
@@ -20,6 +22,7 @@ pnpm link
 ## Use
 
 ```sh
+printf 'month,traffic\nJan,10\nFeb,25\nMar,18\nApr,40\n' > report.csv
 pingplot --data report.csv --mark bar --x month --y traffic
 ```
 
@@ -77,7 +80,7 @@ pingplot --spec chart.json
 
 Spec files render the same chart as equivalent inline flags. Donut is the one
 type a spec file can't express (Plot has no donut mark — pingplot draws it with
-`d3.arc`), so donut is inline flags only.
+`d3-shape`), so donut is inline flags only.
 
 ## Chart catalog
 
@@ -91,7 +94,8 @@ pingplot builds one JSON-serializable chart description — the data, the marks
 server-side with Plot in jsdom for PNG and SVG, or embedded in a self-contained
 HTML page that rebuilds the same chart in the browser. Inline flags and
 `--spec` files both produce a description, so the two render paths can't drift.
-Donut is the exception: Plot has no donut mark, so pingplot draws it with d3.
+Donut is the exception: Plot has no donut mark, so pingplot draws it with
+`d3-shape`.
 
 ## Develop
 
