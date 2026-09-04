@@ -1,4 +1,4 @@
-# pingplot
+# PiNGplot
 
 CLI that turns a CSV or JSON file into a chart — PNG by default, SVG or a
 self-contained HTML page on request. Charts come from [Observable Plot](https://observablehq.com/plot):
