@@ -9,7 +9,7 @@ pingplot is a CLI tool first — it works standalone in bash, no agent required.
 ## Stack
 
 - Node 18+ (built on 22), ESM, pnpm
-- `@observablehq/plot` (engine), `jsdom` (server-side SVG render), `sharp` (SVG→PNG rasterize), `d3` (data loading + donut arcs)
+- `@observablehq/plot` (engine), `jsdom` (server-side SVG render), `sharp` (SVG→PNG rasterize), `d3-dsv` (CSV parsing), `d3-shape` (donut arcs)
 - Tests: vitest (`pnpm test`)
 
 ## Surfaces

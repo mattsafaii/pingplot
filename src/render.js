@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import * as Plot from "@observablehq/plot";
 import sharp from "sharp";
-import { arc as arcShape, pie as pieShape } from "d3";
+import { arc as arcShape, pie as pieShape } from "d3-shape";
 
 import { PingplotError } from "./errors.js";
 import { specFromPlan } from "./spec.js";

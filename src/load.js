@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
-import { autoType, csvParse } from "d3";
+import { autoType, csvParse } from "d3-dsv";
 
 import { PingplotError } from "./errors.js";
 
