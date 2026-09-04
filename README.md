@@ -7,14 +7,14 @@ Plot defaults for styling, with custom color palettes as the one option.
 ## Install
 
 ```sh
-pnpm install
+npm install -g pingplot
 ```
 
-Run it directly, or link it:
+Or run from source (Node 18+, [pnpm](https://pnpm.io)):
 
 ```sh
-node src/cli.js --data report.csv --mark bar --x month --y traffic
-pnpm link   # gives you a `pingplot` command
+pnpm install
+pnpm link
 ```
 
 ## Use
@@ -39,12 +39,11 @@ comes from `--mark`; match your data to a type in [catalog.md](catalog.md).
 
 ### Formats
 
-- **png** (default) — rendered server-side and rasterized. `--format html`
-  loads Plot from the CDN and renders in the browser, so it needs a network
-  connection.
+- **png** (default) — rendered server-side and rasterized.
 - **svg** — the raw chart as a well-formed SVG file.
-- **html** — a self-contained page. `--interactive` adds hover tooltips here;
-  png/svg never include them.
+- **html** — a self-contained page that loads Plot from the CDN and renders in
+  the browser, so it needs a network connection. `--interactive` adds hover
+  tooltips here; png/svg never include them.
 
 ### Colors
 
@@ -85,12 +84,25 @@ type a spec file can't express (Plot has no donut mark — pingplot draws it wit
 [catalog.md](catalog.md) lists every chart type with the data shape it expects,
 the Plot marks behind it, and when to reach for it.
 
-## Tests
+## How it works
+
+pingplot builds one JSON-serializable chart description — the data, the marks
+(named by Plot constructor), and plot options — and renders it two ways:
+server-side with Plot in jsdom for PNG and SVG, or embedded in a self-contained
+HTML page that rebuilds the same chart in the browser. Inline flags and
+`--spec` files both produce a description, so the two render paths can't drift.
+Donut is the exception: Plot has no donut mark, so pingplot draws it with d3.
+
+## Develop
 
 ```sh
 pnpm test
 ```
 
-## Status
+The suite covers parsing, loading, spec building, all three output formats, the
+client-side HTML script, and a catalog loop that renders every chart type from
+a committed fixture.
 
-Shipped. Local CLI for Matt and his agents; no server, no public distribution.
+## License
+
+[MIT](LICENSE)

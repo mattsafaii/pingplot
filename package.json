@@ -1,14 +1,35 @@
 {
   "name": "pingplot",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Turn a CSV or JSON file into a chart — PNG by default, SVG or self-contained HTML on request — via Observable Plot.",
+  "main": "src/cli.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "pnpm test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "chart",
+    "plot",
+    "cli",
+    "observable-plot",
+    "png",
+    "svg",
+    "html",
+    "data-viz",
+    "csv",
+    "json"
+  ],
+  "author": "Matt Safaii",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "src",
+    "catalog.md",
+    "README.md",
+    "LICENSE"
+  ],
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
