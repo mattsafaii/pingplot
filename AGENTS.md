@@ -33,6 +33,20 @@ Plot defaults for everything — default styling, default schemes (`Turbo` for s
 - **Reusable branded charts:** a `--spec` file carries the full Plot options including the `range`. No persistent theme or config.
 - **Selection:** Plot's default behavior — the color scale's domain is the distinct values in the color channel in natural ascending order, colors assign to domain values by position. Domain order is controlled Plot-native: set the color scale's `domain` explicitly in the spec, or use a mark's `sort` option.
 
+## Releasing
+
+Publish a new version to npm by hand. The npm account uses passkey-only 2FA, so
+CLI tokens and `--otp` don't work — the publish must authenticate in a browser:
+
+```sh
+pnpm version patch
+pnpm publish          # press ENTER, authenticate in the browser with the passkey
+git push --follow-tags
+```
+
+`prepublishOnly` runs the test suite before the publish. Package page:
+https://www.npmjs.com/package/pingplot
+
 ## No-gos
 
 - No web app or server (a future web app would render Plot client-side)
